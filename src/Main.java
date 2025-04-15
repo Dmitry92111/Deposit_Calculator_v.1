@@ -86,7 +86,6 @@ public class Main {
                     } else {
                         LocalDate current = startDate; // считаем по аналогии с предыдущим блоком только в последнюю дату месяца прибавляем начисленные проценты за текущий месяц (капитализация)
 
-
                         while (current.isBefore(endDate)) {
 
                             boolean isLeap = current.isLeapYear();
@@ -97,17 +96,13 @@ public class Main {
 
                             long daysInThisMonth = ChronoUnit.DAYS.between(current, nextPoint);
 
-                            amount = amount + totalIncome;
-
                             if (isLeap) {
-                                income = amount * interestRate * daysInThisMonth / 366 / 100;
+                                income = (amount + totalIncome) * interestRate * daysInThisMonth / 366 / 100;
 
                             } else {
-                                income = amount * interestRate * daysInThisMonth / 365 / 100;
+                                income = (amount + totalIncome) * interestRate * daysInThisMonth / 365 / 100;
 
                             }
-                            amount = amount - totalIncome;// приводим сумму в первоначальное значение
-
                             income = Math.round(income * 100.0) / 100.0; //округляем проценты
 
                             totalIncome = totalIncome + income; // скидываем проценты в счетчик
@@ -117,9 +112,9 @@ public class Main {
                     }
                     double totalWithdrawSum;
                     totalWithdrawSum = amount + totalIncome;
-                    String IncomeCommaFormat = decimalFormat.format(totalIncome); // для формата вывода данных через запятую + округление
+                    String incomeCommaFormat = decimalFormat.format(totalIncome); // для формата вывода данных через запятую + округление
                     String totalWithdrawSumCommaFormat = decimalFormat.format(totalWithdrawSum); // для формата вывода данных через запятую + округление
-                    System.out.println("Вы заработали:" + " " + IncomeCommaFormat + " " + "рублей");
+                    System.out.println("Вы заработали:" + " " + incomeCommaFormat + " " + "рублей");
                     System.out.println("Сумма, доступная к выводу:" + " " + totalWithdrawSumCommaFormat + " " + "рублей");
                 }
             }
