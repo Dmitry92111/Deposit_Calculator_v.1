@@ -5,7 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
 
 public class Main {
-    public static void main (String[] args) {
+    public static void main(String[] args) {
 
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         Scanner scanner = new Scanner(System.in);
@@ -13,7 +13,7 @@ public class Main {
         System.out.print("Происходит ли капитализация процентов по вкладу в последний календарный день месяца? (Введите Да или Нет): ");
         String capitalization = scanner.nextLine();
 
-        if(!capitalization.equals("Нет") && !capitalization.equals("Да")) {
+        if (!capitalization.equals("Нет") && !capitalization.equals("Да")) {
 
             System.out.println("Неизвестная команда в строке ввода капитализации");
 
@@ -37,7 +37,7 @@ public class Main {
 
                     System.out.println("Введенная процентная ставка некорректна!");
 
-                }  else {
+                } else {
 
                     double totalIncome = 0;
 
@@ -117,7 +117,7 @@ public class Main {
                     }
                     double totalWithdrawSum;
                     totalWithdrawSum = amount + totalIncome;
-                    String IncomeCommaFormat = decimalFormat.format (totalIncome); // для формата вывода данных через запятую + округление
+                    String IncomeCommaFormat = decimalFormat.format(totalIncome); // для формата вывода данных через запятую + округление
                     String totalWithdrawSumCommaFormat = decimalFormat.format(totalWithdrawSum); // для формата вывода данных через запятую + округление
                     System.out.println("Вы заработали:" + " " + IncomeCommaFormat + " " + "рублей");
                     System.out.println("Сумма, доступная к выводу:" + " " + totalWithdrawSumCommaFormat + " " + "рублей");
