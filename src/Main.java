@@ -15,7 +15,7 @@ public class Main {
 
         if(!capitalization.equals("Нет") && !capitalization.equals("Да")) {
 
-            System.out.println("Неизвестная команда в строке в строке ввода капитализации");
+            System.out.println("Неизвестная команда в строке ввода капитализации");
 
         } else {
 
