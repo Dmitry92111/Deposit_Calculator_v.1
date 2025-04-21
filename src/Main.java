@@ -1,14 +1,17 @@
+import java.util.Scanner;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.util.Scanner;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 public class Main {
     public static void main(String[] args) {
 
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         Scanner scanner = new Scanner(System.in);
+
 
         System.out.print("Происходит ли капитализация процентов по вкладу в последний календарный день месяца? (Введите Да или Нет): ");
         String capitalization = scanner.nextLine();
@@ -21,7 +24,6 @@ public class Main {
 
             System.out.print("Введите сумму вклада в рублях РФ (разделитель между рублями и копейками - запятая): ");
             double amount = scanner.nextDouble();
-            scanner.nextLine();
 
             if (amount < 0) {
 
@@ -32,7 +34,6 @@ public class Main {
                 System.out.print("Введите процентную ставку (в % годовых без знака <%>, разделитель - запятая): ");
                 double interestRate = scanner.nextDouble();
                 scanner.nextLine();
-
                 if (interestRate < 0) {
 
                     System.out.println("Введенная процентная ставка некорректна!");
@@ -40,19 +41,38 @@ public class Main {
                 } else {
 
                     double totalIncome = 0;
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-                    // Ввод двух дат пользователем
-                    System.out.print("Введите дату открытия вклада (в формате ГГГГ-ММ-ДД): ");
-                    LocalDate startDate = LocalDate.parse(scanner.nextLine());
+                    // Ввод двух дат пользователем, проверка корректности вводимых дат и их формата
 
-                    System.out.print("Введите дату окончания срока вклада (в формате ГГГГ-ММ-ДД): ");
-                    LocalDate endDate = LocalDate.parse(scanner.nextLine());
+                    LocalDate startDate = null;
+                    while (startDate == null) {
+                        System.out.print("Введите дату открытия вклада (в формате ДД.ММ.ГГГГ): ");
+                        String inputStartDate = scanner.nextLine();
+                        try {
+                            startDate = LocalDate.parse(inputStartDate, formatter);
+                        } catch (DateTimeParseException e) {
+                            System.out.println ("Неверный формат даты! Попробуйте снова");
+                        }
+                    }
+
+                    LocalDate endDate = null;
+                    while (endDate == null) {
+                        System.out.print("Введите дату окончания срока вклада (в формате ДД.ММ.ГГГГ): ");
+                        String inputEndDate = scanner.nextLine();
+                        try {
+                            endDate = LocalDate.parse(inputEndDate, formatter);
+                        } catch (DateTimeParseException e) {
+                            System.out.println ("Неверный формат даты! Попробуйте снова");
+                        }
+                    }
 
                     // Убеждаемся, что startDate раньше endDate, в противном случае - меняем местами
                     if (startDate.isAfter(endDate)) {
                         LocalDate temp = startDate;
                         startDate = endDate;
                         endDate = temp;
+                        System.out.println ("Введенная дата открытия вклада позже даты окончания срока вклада, даты были заменены друг другом"); // не совсем удачная формулировка -_-
                     }
 
                     double income; // данная переменная обозначает сумму начисленных процентов по вкладу, без суммы вклада
