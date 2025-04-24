@@ -1,5 +1,6 @@
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.Scanner;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
@@ -9,14 +10,16 @@ import java.time.format.DateTimeParseException;
 public class Main {
     public static void main(String[] args) {
 
-        DecimalFormat decimalFormat = new DecimalFormat("#.##");
+        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.of("ru", "Ru"));
         Scanner scanner = new Scanner(System.in);
+        CapitalizationCondition condition = askCapitalizationCondition(scanner);
+        System.out.println("Вы выбрали: " + condition.getDescription());
 
-        var isCapitalizationEnabled = readCapitalizationCondition(scanner);
-        var amount = getDepositAmount(scanner);
-        var interestRate = getInterestRate(scanner);
-        var startDate = getDepositStartDate(scanner);
-        var endDate = getDepositEndDate(scanner);
+
+        var depositAmount = getDepositAmount(scanner);
+        var AnnualInterestRate = getAnnualInterestRate(scanner);
+        var startDate = askDate(scanner, "Введите дату открытия вклада (ДД.ММ.ГГГГ): ");
+        var endDate = askDate(scanner, "Введите дату окончания срока вклада (ДД.ММ.ГГГГ): ");
 
         // Убеждаемся, что startDate раньше endDate, в противном случае - меняем местами
         if (startDate.isAfter(endDate)) {
@@ -26,109 +29,124 @@ public class Main {
             System.out.println("Введенная дата открытия вклада позже даты окончания срока вклада, даты поменялись местами");
         }
 
-        var totalIncome = calculationOfInterestOnDeposit(isCapitalizationEnabled, amount, interestRate, startDate, endDate);
+        var totalInterestEarned = calculationOfInterestOnDeposit(condition, depositAmount, AnnualInterestRate, startDate, endDate);
 
-        double totalWithdrawSum = amount + totalIncome;
-        String incomeCommaFormat = decimalFormat.format(totalIncome); // для формата вывода данных через запятую + округление
-        String totalWithdrawSumCommaFormat = decimalFormat.format(totalWithdrawSum); // для формата вывода данных через запятую + округление
-        System.out.println("Вы заработали:" + " " + incomeCommaFormat + " " + "рублей");
-        System.out.println("Сумма, доступная к выводу:" + " " + totalWithdrawSumCommaFormat + " " + "рублей");
+        double totalWithdrawSum = depositAmount + totalInterestEarned;
+        String formattedIncome = currencyFormat.format(totalInterestEarned); // для формата вывода данных через запятую + округление + разделители между разрядами
+        String formattedTotalWithdrawSum = currencyFormat.format(totalWithdrawSum); // для формата вывода данных через запятую + округление + разделители между разрядами
+
+        System.out.println("Вы заработали: " + formattedIncome);
+        System.out.println("Сумма, доступная к выводу: " + formattedTotalWithdrawSum);
     }
 
-    private static boolean readCapitalizationCondition(Scanner scanner) {//капитализация Да? Нет?
+    public enum CapitalizationCondition {
+        NO("Капитализация процентов по вкладу не происходит"),
+        YES_LAST_DAY_OF_MONTH("Капитализация в последний календарный день месяца"),
+        YES_LAST_WORKING_DAY_OF_MONTH("Капитализация в последний рабочий день месяца");
 
-        System.out.print("Происходит ли капитализация процентов по вкладу в последний календарный день месяца? (Введите Да или Нет): ");
-        String capitalization = scanner.nextLine();
+        private final String description;
 
-        while (!capitalization.equals("Нет") && !capitalization.equals("Да")) {
-            System.out.println("Неизвестная команда в строке ввода");
-            System.out.print("Происходит ли капитализация процентов по вкладу в последний календарный день месяца? (Введите Да или Нет): ");
-            capitalization = scanner.nextLine();
+        CapitalizationCondition(String description) {
+            this.description = description;
         }
-        return capitalization.equals("Да");
+
+        public String getDescription() {
+            return description;
+        }
+    }
+
+    public static CapitalizationCondition askCapitalizationCondition(Scanner scanner) {
+        while (true) {
+            System.out.print("Происходит ли капитализация процентов по вкладу (Введите Да/Нет): ");
+            String firstAnswer = scanner.nextLine().trim();
+
+            if (firstAnswer.equalsIgnoreCase("Нет")) {
+                return CapitalizationCondition.NO;
+
+            } else if (firstAnswer.equalsIgnoreCase("Да")) {
+                while (true) {
+                    System.out.print("Уточните, проценты причисляются к сумме вклада: в последний календарный день месяца (Введите: 'К') или в последний рабочий день месяца (Введите 'Р')? ");
+                    String secondAnswer = scanner.nextLine().trim();
+
+                    if (secondAnswer.equalsIgnoreCase("К")) {
+                        return CapitalizationCondition.YES_LAST_DAY_OF_MONTH;
+                    } else if (secondAnswer.equalsIgnoreCase("Р")) {
+                        return CapitalizationCondition.YES_LAST_WORKING_DAY_OF_MONTH;
+                    } else {
+                        System.out.println("Пожалуйста, введите 'К' или 'Р'.");
+                    }
+                }
+            } else {
+                System.out.println("Пожалуйста, введите 'Да' или 'Нет'.");
+            }
+        }
     }
 
 
     private static double getDepositAmount(Scanner scanner) {//ввод суммы вклада пользователем, проверка корректности формата введенной суммы
-        double amount = -1;
-        while (amount < 0) {
+        double depositAmount = -1;
+        while (depositAmount < 0) {
             System.out.print("Введите сумму вклада в рублях РФ (разделитель между рублями и копейками - запятая): ");
             String inputAmount = scanner.nextLine().replace(',', '.');
             try {
-                amount = Double.parseDouble(inputAmount);
+                depositAmount = Double.parseDouble(inputAmount);
 
-                if (amount < 0) {
+                if (depositAmount < 0) {
                     System.out.println("Введенная сумма вклада некорректна (меньше нуля)!");
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Ошибка: введите число, например 15000,50: ");
-                amount = -1;
+                depositAmount = -1;
             }
         }
-        return amount;
+        return depositAmount;
     }
 
-    private static double getInterestRate(Scanner scanner) {//ввод процентной ставки пользователем, проверка корректности формата введенной ставки
-        double interestRate = -1;
-        while (interestRate < 0) {
+    private static double getAnnualInterestRate(Scanner scanner) {//ввод процентной ставки пользователем, проверка корректности формата введенной ставки
+        double annualInterestRate = -1;
+        while (annualInterestRate < 0) {
             System.out.print("Введите процентную ставку (в % годовых без знака <%>, разделитель - запятая): ");
             String inputInterestRate = scanner.nextLine().replace(',', '.');
             try {
-                interestRate = Double.parseDouble(inputInterestRate);
+                annualInterestRate = Double.parseDouble(inputInterestRate);
 
-                if (interestRate < 0) {
+                if (annualInterestRate < 0) {
                     System.out.println("Введенная процентная ставка некорректна (меньше нуля)!");
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Ошибка: введите число, например 11,55: ");
-                interestRate = -1;
+                annualInterestRate = -1;
             }
         }
-        return interestRate;
+        return annualInterestRate;
     }
 
-    private static LocalDate getDepositStartDate(Scanner scanner) {
+    private static LocalDate askDate(Scanner scanner, String message) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        LocalDate startDate = null;
-        while (startDate == null) {
-            System.out.print("Введите дату открытия вклада (в формате ДД.ММ.ГГГГ): ");
-            String inputStartDate = scanner.nextLine();
+
+        while (true) {
+            System.out.print(message);
             try {
-                startDate = LocalDate.parse(inputStartDate, formatter);
+                return LocalDate.parse(scanner.nextLine(), formatter);
             } catch (DateTimeParseException e) {
                 System.out.println("Неверный формат даты! Попробуйте снова");
             }
         }
-        return startDate;
     }
 
-    private static LocalDate getDepositEndDate(Scanner scanner) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        LocalDate endDate = null;
-        while (endDate == null) {
-            System.out.print("Введите дату окончания срока вклада (в формате ДД.ММ.ГГГГ): ");
-            String inputEndDate = scanner.nextLine();
-            try {
-                endDate = LocalDate.parse(inputEndDate, formatter);
-            } catch (DateTimeParseException e) {
-                System.out.println("Неверный формат даты! Попробуйте снова");
-            }
-        }
-        return endDate;
-    }
 
     private static double calculationOfInterestOnDeposit
-            (boolean isCapitalizationEnabled,
-             double amount,
-             double interestRate,
+            (CapitalizationCondition condition,
+             double depositAmount,
+             double annualInterestRate,
              LocalDate startDate,
              LocalDate endDate) {
 
-        double totalIncome = 0;
+        double totalInterestEarned = 0;
         double income; // данная переменная обозначает сумму начисленных процентов по вкладу, без суммы вклада
 
         LocalDate current = startDate;
-        if (isCapitalizationEnabled) {
+        if (condition == CapitalizationCondition.YES_LAST_DAY_OF_MONTH) {
             while (current.isBefore(endDate)) {
 
                 boolean isLeap = current.isLeapYear();
@@ -140,20 +158,20 @@ public class Main {
                 long daysInThisMonth = ChronoUnit.DAYS.between(current, nextPoint);
 
                 if (isLeap) {
-                    income = (amount + totalIncome) * interestRate * daysInThisMonth / 366 / 100;
+                    income = (depositAmount + totalInterestEarned) * annualInterestRate * daysInThisMonth / 366 / 100;
 
                 } else {
-                    income = (amount + totalIncome) * interestRate * daysInThisMonth / 365 / 100;
+                    income = (depositAmount + totalInterestEarned) * annualInterestRate * daysInThisMonth / 365 / 100;
 
                 }
                 income = Math.round(income * 100.0) / 100.0; //округляем проценты
 
-                totalIncome += income; // скидываем проценты в счетчик
+                totalInterestEarned += income; // скидываем проценты в счетчик
 
                 current = nextPoint;// переходим на следующий месяц
             }
 
-        } else {
+        } else if (condition == CapitalizationCondition.NO) {
             long leapYearDays = 0L;
             long nonLeapYearDays = 0L;
 
@@ -176,9 +194,11 @@ public class Main {
                 current = nextPoint; // начинаем цикл заново со следующей точки
             }
 
-            totalIncome = (amount * interestRate * leapYearDays / 366 / 100) + (amount * interestRate * nonLeapYearDays / 365 / 100); // считаем проценты
+            totalInterestEarned = (depositAmount * annualInterestRate * leapYearDays / 366 / 100) + (depositAmount * annualInterestRate * nonLeapYearDays / 365 / 100); // считаем проценты
 
+        } else if (condition == CapitalizationCondition.YES_LAST_WORKING_DAY_OF_MONTH) {
+            System.out.println("В процессе разработки");
         }
-        return totalIncome;
+        return totalInterestEarned;
     }
 }
