@@ -10,6 +10,11 @@ import java.time.format.DateTimeParseException;
 import java.math.BigDecimal;
 
 public class Main {
+
+    private static final BigDecimal PERCENTAGE_DIVISOR = new BigDecimal("0.01");
+    private static final BigDecimal LEAP_YEAR_DAYS = new BigDecimal("366");
+    private static final BigDecimal NON_LEAP_YEAR_DAYS = new BigDecimal("365");
+
     public static void main(String[] args) {
 
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.of("ru", "Ru"));
@@ -160,19 +165,12 @@ public class Main {
                 long daysInThisMonth = ChronoUnit.DAYS.between(current, nextPoint);
                 BigDecimal bigDecimalDaysInThisMonth = new BigDecimal(daysInThisMonth);
 
-                BigDecimal count = (depositAmount.add(totalInterestEarned))
+                income = (depositAmount.add(totalInterestEarned))
                         .multiply(annualInterestRate)
                         .multiply(bigDecimalDaysInThisMonth)
-                        .multiply(new BigDecimal("0.01"));
+                        .multiply(PERCENTAGE_DIVISOR)
+                        .divide(isLeap ? LEAP_YEAR_DAYS : NON_LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
 
-
-                if (isLeap) {
-                    income = count.divide(new BigDecimal("366"), 2, RoundingMode.HALF_UP);
-
-                } else {
-                    income = count.divide(new BigDecimal("365"), 2, RoundingMode.HALF_UP);
-
-                }
 
                 totalInterestEarned = totalInterestEarned.add(income); // скидываем проценты в счетчик
 
@@ -180,8 +178,8 @@ public class Main {
             }
 
         } else if (condition == CapitalizationCondition.NO) {
-            long leapYearDays = 0L;
-            long nonLeapYearDays = 0L;
+            long leapYearDaysCount = 0L;
+            long nonLeapYearDaysCount = 0L;
 
             /* Расчет без капитализации путем пересчета в счетчиках общего количества дней в високосных или невисокосных годах,
         а также последующего вычисления процентов по формуле расчета процентов по вкладу*/
@@ -194,28 +192,28 @@ public class Main {
                 long daysInThisYear = ChronoUnit.DAYS.between(current, nextPoint); // считаем количество дней на данном отрезке
 
                 if (isLeap) {
-                    leapYearDays += daysInThisYear;
+                    leapYearDaysCount += daysInThisYear;
                 } else {
-                    nonLeapYearDays += daysInThisYear;
+                    nonLeapYearDaysCount += daysInThisYear;
                 }
 
                 current = nextPoint; // начинаем цикл заново со следующей точки
             }
 
-            BigDecimal bigDecimalLeapYearDays = new BigDecimal(leapYearDays);
-            BigDecimal bigDecimalNonLeapYearDays = new BigDecimal(nonLeapYearDays);
+            BigDecimal leapYearDays = new BigDecimal(leapYearDaysCount);
+            BigDecimal nonLeapYearDays = new BigDecimal(nonLeapYearDaysCount);
 
             BigDecimal multipliedLeapYearDaysIncome =
                     depositAmount.multiply(annualInterestRate)
-                            .multiply(bigDecimalLeapYearDays)
-                            .multiply(new BigDecimal("0.01"))
-                            .divide(new BigDecimal("366"), 2, RoundingMode.HALF_UP);
+                            .multiply(leapYearDays)
+                            .multiply(PERCENTAGE_DIVISOR)
+                            .divide(LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
 
             BigDecimal multipliedNONLeapYearDaysIncome =
                     depositAmount.multiply(annualInterestRate)
-                            .multiply(bigDecimalNonLeapYearDays)
-                            .multiply(new BigDecimal("0.01"))
-                            .divide(new BigDecimal("366"), 2, RoundingMode.HALF_UP);
+                            .multiply(nonLeapYearDays)
+                            .multiply(PERCENTAGE_DIVISOR)
+                            .divide(NON_LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
 
             totalInterestEarned = multipliedLeapYearDaysIncome.add(multipliedNONLeapYearDaysIncome);
 
