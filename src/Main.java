@@ -11,9 +11,11 @@ import java.math.BigDecimal;
 
 public class Main {
 
-    private static final BigDecimal PERCENTAGE_DIVISOR = new BigDecimal("0.01");
-    private static final BigDecimal LEAP_YEAR_DAYS = new BigDecimal("366");
-    private static final BigDecimal NON_LEAP_YEAR_DAYS = new BigDecimal("365");
+    private static final BigDecimal PERCENTAGE_DIVISOR = BigDecimal.valueOf(0.01);
+    private static final BigDecimal LEAP_YEAR_DAYS = BigDecimal.valueOf(366);
+    private static final BigDecimal NON_LEAP_YEAR_DAYS = BigDecimal.valueOf(365);
+    private static final String inProgress = "В процессе разработки";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     public static void main(String[] args) {
 
@@ -23,8 +25,8 @@ public class Main {
         System.out.println("Вы выбрали: " + condition.getDescription());
 
 
-        var depositAmount = getDepositAmount(scanner);
-        var AnnualInterestRate = getAnnualInterestRate(scanner);
+        var depositAmount = getBigDecimalInput(scanner, "Введите сумму вклада в рублях РФ (разделитель между рублями и копейками - запятая): ");
+        var annualInterestRate = getBigDecimalInput(scanner, "Введите процентную ставку (в % годовых без знака <%>, разделитель - запятая): ");
         var startDate = askDate(scanner, "Введите дату открытия вклада (ДД.ММ.ГГГГ): ");
         var endDate = askDate(scanner, "Введите дату окончания срока вклада (ДД.ММ.ГГГГ): ");
 
@@ -36,7 +38,7 @@ public class Main {
             System.out.println("Введенная дата открытия вклада позже даты окончания срока вклада, даты поменялись местами");
         }
 
-        var totalInterestEarned = calculationOfInterestOnDeposit(condition, depositAmount, AnnualInterestRate, startDate, endDate);
+        var totalInterestEarned = calculationOfInterestOnDeposit(condition, depositAmount, annualInterestRate, startDate, endDate);
 
         BigDecimal totalWithdrawSum = depositAmount.add(totalInterestEarned);
         String formattedIncome = currencyFormat.format(totalInterestEarned); // для формата вывода данных через запятую + округление + разделители между разрядами
@@ -90,51 +92,34 @@ public class Main {
     }
 
 
-    private static BigDecimal getDepositAmount(Scanner scanner) {//ввод суммы вклада пользователем, проверка корректности формата введенной суммы
-        BigDecimal depositAmount = new BigDecimal("-1");
-        while (depositAmount.compareTo(new BigDecimal("0")) < 0) {
-            System.out.print("Введите сумму вклада в рублях РФ (разделитель между рублями и копейками - запятая): ");
-            String inputAmount = scanner.nextLine().replace(',', '.');
-            try {
-                depositAmount = new BigDecimal(inputAmount);
+    private static BigDecimal getBigDecimalInput(Scanner scanner, String message) {//ввод суммы вклада пользователем, проверка корректности формата введенной суммы
+        BigDecimal bigDecimalInput;
 
-                if (depositAmount.compareTo(new BigDecimal("0")) < 0) {
-                    System.out.println("Введенная сумма вклада некорректна (меньше нуля)!");
+        while (true) {
+            System.out.print(message);
+            String input = scanner.nextLine().replace(',', '.');
+
+            try {
+                bigDecimalInput = new BigDecimal(input);
+
+                if (bigDecimalInput.compareTo(BigDecimal.ZERO) < 0) {
+                    System.out.println("Введенное значение некорректно (меньше нуля)!");
+                    continue;
                 }
+                break;
             } catch (NumberFormatException e) {
-                System.out.println("Ошибка: введите число, например 15000,50: ");
-                depositAmount = new BigDecimal("-1");
+                System.out.println("Ошибка: введите число, например 15000,50 или 15,34: ");
             }
         }
-        return depositAmount;
-    }
-
-    private static BigDecimal getAnnualInterestRate(Scanner scanner) {//ввод процентной ставки пользователем, проверка корректности формата введенной ставки
-        BigDecimal annualInterestRate = new BigDecimal("-1");
-        while (annualInterestRate.compareTo(new BigDecimal("0")) < 0) {
-            System.out.print("Введите процентную ставку (в % годовых без знака <%>, разделитель - запятая): ");
-            String inputInterestRate = scanner.nextLine().replace(',', '.');
-            try {
-                annualInterestRate = new BigDecimal(inputInterestRate);
-
-                if (annualInterestRate.compareTo(new BigDecimal("0")) < 0) {
-                    System.out.println("Введенная процентная ставка некорректна (меньше нуля)!");
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Ошибка: введите число, например 11,55: ");
-                annualInterestRate = new BigDecimal("-1");
-            }
-        }
-        return annualInterestRate;
+        return bigDecimalInput;
     }
 
     private static LocalDate askDate(Scanner scanner, String message) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
         while (true) {
             System.out.print(message);
             try {
-                return LocalDate.parse(scanner.nextLine(), formatter);
+                return LocalDate.parse(scanner.nextLine(), DATE_FORMATTER);
             } catch (DateTimeParseException e) {
                 System.out.println("Неверный формат даты! Попробуйте снова");
             }
@@ -149,7 +134,7 @@ public class Main {
              LocalDate startDate,
              LocalDate endDate) {
 
-        BigDecimal totalInterestEarned = new BigDecimal("0");
+        BigDecimal totalInterestEarned = BigDecimal.ZERO;
         BigDecimal income; // данная переменная обозначает сумму начисленных процентов по вкладу, без суммы вклада
 
         LocalDate current = startDate;
@@ -162,12 +147,11 @@ public class Main {
                 LocalDate lastDayOfMonth = ym.atEndOfMonth(); // ищем последнюю дату месяца
                 LocalDate nextPoint = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth.plusDays(1) : endDate;// по аналогии с предыдущим блоком
 
-                long daysInThisMonth = ChronoUnit.DAYS.between(current, nextPoint);
-                BigDecimal bigDecimalDaysInThisMonth = new BigDecimal(daysInThisMonth);
+                BigDecimal daysInThisMonth = BigDecimal.valueOf(ChronoUnit.DAYS.between(current, nextPoint));
 
                 income = (depositAmount.add(totalInterestEarned))
                         .multiply(annualInterestRate)
-                        .multiply(bigDecimalDaysInThisMonth)
+                        .multiply(daysInThisMonth)
                         .multiply(PERCENTAGE_DIVISOR)
                         .divide(isLeap ? LEAP_YEAR_DAYS : NON_LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
 
@@ -200,25 +184,26 @@ public class Main {
                 current = nextPoint; // начинаем цикл заново со следующей точки
             }
 
-            BigDecimal leapYearDays = new BigDecimal(leapYearDaysCount);
-            BigDecimal nonLeapYearDays = new BigDecimal(nonLeapYearDaysCount);
+            BigDecimal leapYearDays = BigDecimal.valueOf(leapYearDaysCount);
+            BigDecimal nonLeapYearDays = BigDecimal.valueOf(nonLeapYearDaysCount);
 
             BigDecimal multipliedLeapYearDaysIncome =
                     depositAmount.multiply(annualInterestRate)
                             .multiply(leapYearDays)
                             .multiply(PERCENTAGE_DIVISOR)
-                            .divide(LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
+                            .divide(LEAP_YEAR_DAYS, 10, RoundingMode.HALF_UP);
 
             BigDecimal multipliedNONLeapYearDaysIncome =
                     depositAmount.multiply(annualInterestRate)
                             .multiply(nonLeapYearDays)
                             .multiply(PERCENTAGE_DIVISOR)
-                            .divide(NON_LEAP_YEAR_DAYS, 2, RoundingMode.HALF_UP);
+                            .divide(NON_LEAP_YEAR_DAYS, 10, RoundingMode.HALF_UP);
 
             totalInterestEarned = multipliedLeapYearDaysIncome.add(multipliedNONLeapYearDaysIncome);
+            totalInterestEarned = totalInterestEarned.setScale(2, RoundingMode.HALF_UP);
 
         } else if (condition == CapitalizationCondition.YES_LAST_WORKING_DAY_OF_MONTH) {
-            System.out.println("В процессе разработки");
+            throw new UnsupportedOperationException(inProgress);
         }
         return totalInterestEarned;
     }
