@@ -7,7 +7,9 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAdjusters;
 import java.math.BigDecimal;
+
 
 public class Main {
 
@@ -27,8 +29,8 @@ public class Main {
 
         var depositAmount = getBigDecimalInput(scanner, "Введите сумму вклада в рублях РФ (разделитель между рублями и копейками - запятая): ");
         var annualInterestRate = getBigDecimalInput(scanner, "Введите процентную ставку (в % годовых без знака <%>, разделитель - запятая): ");
-        var startDate = askDate(scanner, "Введите дату открытия вклада (ДД.ММ.ГГГГ): ");
-        var endDate = askDate(scanner, "Введите дату окончания срока вклада (ДД.ММ.ГГГГ): ");
+        var startDate = askDate(scanner, "Введите дату открытия вклада (ДД.ММ.ГГГГ): ", condition);
+        var endDate = askDate(scanner, "Введите дату окончания срока вклада (ДД.ММ.ГГГГ): ", condition);
 
         // Убеждаемся, что startDate раньше endDate, в противном случае - меняем местами
         if (startDate.isAfter(endDate)) {
@@ -74,7 +76,7 @@ public class Main {
 
             } else if (firstAnswer.equalsIgnoreCase("Да")) {
                 while (true) {
-                    System.out.print("Уточните, проценты причисляются к сумме вклада: в последний календарный день месяца (Введите: 'К') или в последний рабочий день месяца (Введите 'Р')? ");
+                    System.out.print("Уточните, проценты причисляются к сумме вклада: в последний календарный день месяца (Введите: 'К') или в последний рабочий день месяца в период с 01.01.2003 по 12.12.2025 (Введите 'Р')? ");
                     String secondAnswer = scanner.nextLine().trim();
 
                     if (secondAnswer.equalsIgnoreCase("К")) {
@@ -114,12 +116,22 @@ public class Main {
         return bigDecimalInput;
     }
 
-    private static LocalDate askDate(Scanner scanner, String message) {
+    private static LocalDate askDate(Scanner scanner, String message, CapitalizationCondition condition) {
+
 
         while (true) {
             System.out.print(message);
             try {
-                return LocalDate.parse(scanner.nextLine(), DATE_FORMATTER);
+                LocalDate date = LocalDate.parse(scanner.nextLine(), DATE_FORMATTER);
+                if (condition == CapitalizationCondition.YES_LAST_WORKING_DAY_OF_MONTH) {
+                    if (date.isAfter(LocalDate.of(2002, 12, 31)) && date.isBefore(LocalDate.of(2026, 1, 1))) {
+                        return date;
+                    } else {
+                        System.out.println("Неверный формат дат, введите дату не ранее 01.01.2003 и не позже 31.12.2025");
+                        continue;
+                    }
+                }
+                return date;
             } catch (DateTimeParseException e) {
                 System.out.println("Неверный формат даты! Попробуйте снова");
             }
@@ -136,18 +148,19 @@ public class Main {
 
         BigDecimal totalInterestEarned = BigDecimal.ZERO;
         BigDecimal income; // данная переменная обозначает сумму начисленных процентов по вкладу, без суммы вклада
+        LocalDate current = startDate.plusDays(1);
 
-        LocalDate current = startDate;
         if (condition == CapitalizationCondition.YES_LAST_DAY_OF_MONTH) {
             while (current.isBefore(endDate)) {
 
                 boolean isLeap = current.isLeapYear();
 
-                YearMonth ym = YearMonth.from(current); // извлекаем год и месяц из даты, сохраняем в переменную ym
-                LocalDate lastDayOfMonth = ym.atEndOfMonth(); // ищем последнюю дату месяца
-                LocalDate nextPoint = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth.plusDays(1) : endDate;// по аналогии с предыдущим блоком
+                LocalDate lastDayOfMonth = current.with(TemporalAdjusters.lastDayOfMonth()); // ищем последнюю дату месяца
+                LocalDate nextPoint = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
 
-                BigDecimal daysInThisMonth = BigDecimal.valueOf(ChronoUnit.DAYS.between(current, nextPoint));
+                long daysBetween = ChronoUnit.DAYS.between(current, nextPoint) + 1;
+
+                BigDecimal daysInThisMonth = BigDecimal.valueOf(daysBetween);
 
                 income = (depositAmount.add(totalInterestEarned))
                         .multiply(annualInterestRate)
@@ -158,7 +171,7 @@ public class Main {
 
                 totalInterestEarned = totalInterestEarned.add(income); // скидываем проценты в счетчик
 
-                current = nextPoint;// переходим на следующий месяц
+                current = nextPoint.plusDays(1);// переходим на следующий месяц
             }
 
         } else if (condition == CapitalizationCondition.NO) {
@@ -171,9 +184,9 @@ public class Main {
                 boolean isLeap = current.isLeapYear();
 
                 LocalDate yearEnd = LocalDate.of(current.getYear(), 12, 31); // находим последнюю дату года, соответствующего заданной дате current
-                LocalDate nextPoint = yearEnd.isBefore(endDate) ? yearEnd.plusDays(1) : endDate; // если current меньше чем конечная дата, заданная пользователем, переходим на следующий год, иначе - на конечную дату
+                LocalDate nextPoint = yearEnd.isBefore(endDate) ? yearEnd : endDate; // если current меньше чем конечная дата, заданная пользователем, переходим на следующий год, иначе - на конечную дату
 
-                long daysInThisYear = ChronoUnit.DAYS.between(current, nextPoint); // считаем количество дней на данном отрезке
+                long daysInThisYear = ChronoUnit.DAYS.between(current, nextPoint) + 1; // считаем количество дней на данном отрезке
 
                 if (isLeap) {
                     leapYearDaysCount += daysInThisYear;
@@ -181,7 +194,7 @@ public class Main {
                     nonLeapYearDaysCount += daysInThisYear;
                 }
 
-                current = nextPoint; // начинаем цикл заново со следующей точки
+                current = nextPoint.plusDays(1);
             }
 
             BigDecimal leapYearDays = BigDecimal.valueOf(leapYearDaysCount);
@@ -203,7 +216,69 @@ public class Main {
             totalInterestEarned = totalInterestEarned.setScale(2, RoundingMode.HALF_UP);
 
         } else if (condition == CapitalizationCondition.YES_LAST_WORKING_DAY_OF_MONTH) {
-            throw new UnsupportedOperationException(inProgress);
+
+            BigDecimal nonCapitalizedInterest = BigDecimal.ZERO;
+            while (current.isBefore(endDate)) {
+
+                YearMonth ym = YearMonth.from(current);// извлекаем год и месяц из даты, сохраняем в переменную ym
+
+                int year = ym.getYear();
+                int month = ym.getMonthValue();
+
+                LocalDate lastWorkingDay = WorkingDayRepository.findLastWorkingDayOfMonth(year, month);// ищем последний рабочий день месяца путем запроса в WorkingDayRepository
+                LocalDate lastDayOfMonth = current.with(TemporalAdjusters.lastDayOfMonth());
+
+                if (lastWorkingDay == null) {
+                    // Если последний рабочий день не найден, пропускаем месяц (это маловероятно)
+                    System.out.println("Ошибка в базе данных, расчет невозможен");
+                    break;
+                }
+
+                if (lastWorkingDay == lastDayOfMonth) {
+                    boolean isLeap = current.isLeapYear();
+                    LocalDate nextPoint = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
+
+                    long daysBetween = ChronoUnit.DAYS.between(current, nextPoint) + 1;
+
+                    BigDecimal daysInThisMonth = BigDecimal.valueOf(daysBetween);
+
+                    income = (depositAmount.add(totalInterestEarned))
+                            .multiply(annualInterestRate)
+                            .multiply(daysInThisMonth)
+                            .multiply(PERCENTAGE_DIVISOR)
+                            .divide(isLeap ? LEAP_YEAR_DAYS : NON_LEAP_YEAR_DAYS, 10, RoundingMode.HALF_UP);
+
+                    totalInterestEarned = totalInterestEarned.add(income).add(nonCapitalizedInterest).setScale(2, RoundingMode.HALF_UP);
+                    nonCapitalizedInterest = BigDecimal.ZERO;
+                    current = nextPoint.plusDays(1);
+
+                } else {
+                    boolean isLeap = current.isLeapYear();
+                    LocalDate nextPoint1 = lastWorkingDay.isBefore(endDate) ? lastWorkingDay : endDate;
+                    BigDecimal daysInFirstPeriod = BigDecimal.valueOf(ChronoUnit.DAYS.between(current, nextPoint1) + 1);
+
+
+                    BigDecimal firstPeriodIncome = (depositAmount.add(totalInterestEarned))
+                            .multiply(annualInterestRate)
+                            .multiply(daysInFirstPeriod)
+                            .multiply(PERCENTAGE_DIVISOR)
+                            .divide(isLeap ? LEAP_YEAR_DAYS : NON_LEAP_YEAR_DAYS, 10, RoundingMode.HALF_UP);
+
+                    current = nextPoint1.plusDays(1);
+                    totalInterestEarned = totalInterestEarned.add(firstPeriodIncome).add(nonCapitalizedInterest).setScale(2, RoundingMode.HALF_UP);
+
+                    LocalDate nextPoint2 = lastDayOfMonth.isBefore(endDate) ? lastDayOfMonth : endDate;
+                    BigDecimal daysInSecondPeriod = BigDecimal.valueOf(ChronoUnit.DAYS.between(current, nextPoint2) + 1);
+                    BigDecimal secondPeriodIncome = (depositAmount.add(totalInterestEarned))
+                            .multiply(annualInterestRate)
+                            .multiply(daysInSecondPeriod)
+                            .multiply(PERCENTAGE_DIVISOR)
+                            .divide(isLeap ? LEAP_YEAR_DAYS : NON_LEAP_YEAR_DAYS, 10, RoundingMode.HALF_UP);
+
+                    current = nextPoint2.plusDays(1);
+                    nonCapitalizedInterest = secondPeriodIncome;
+                }
+            }
         }
         return totalInterestEarned;
     }
